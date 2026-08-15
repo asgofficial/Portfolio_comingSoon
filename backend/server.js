@@ -32,6 +32,9 @@ const mailTransport = GMAIL_APP_PASSWORD
         user: GMAIL_USER,
         pass: GMAIL_APP_PASSWORD,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     })
   : null
 
@@ -194,17 +197,26 @@ app.post('/api/subscribe', subscribeLimiter, async (req, res) => {
   const email = normalizeEmail(req.body?.email)
 
   if (!email || !EMAIL_RE.test(email)) {
-    return res.status(400).json({ ok: false, error: 'Enter a valid email address.' })
+    return res.status(400).json({
+      ok: false,
+      error: 'Enter a valid email address.',
+    })
   }
+
   if (email.length > 254) {
-    return res.status(400).json({ ok: false, error: 'Enter a valid email address.' })
+    return res.status(400).json({
+      ok: false,
+      error: 'Enter a valid email address.',
+    })
   }
 
   const existing = findSubscriberByEmail.get(email)
+
   if (existing) {
-    // Idempotent success — don't leak whether an email already subscribed
-    // via a different status code, and don't error out a repeat click.
-    return res.json({ ok: true, alreadySubscribed: true })
+    return res.json({
+      ok: true,
+      alreadySubscribed: true,
+    })
   }
 
   try {
@@ -215,20 +227,22 @@ app.post('/api/subscribe', subscribeLimiter, async (req, res) => {
     })
   } catch (err) {
     console.error('insert failed:', err.message)
-    return res.status(500).json({ ok: false, error: 'Something went wrong. Try again shortly.' })
+
+    return res.status(500).json({
+      ok: false,
+      error: 'Something went wrong. Try again shortly.',
+    })
   }
 
-  await sendWelcomeEmail(email)
+  // Send email without blocking the signup response
+  sendWelcomeEmail(email).catch((err) => {
+    console.error('Background welcome email error:', err)
+  })
 
-  return res.status(201).json({ ok: true })
-})
-
-app.post('/api/admin/login', (req, res) => {
-  if (!ADMIN_API_KEY || req.body?.key !== ADMIN_API_KEY) {
-    return res.status(401).json({ ok: false, error: 'Unauthorized' })
-  }
-
-  return res.json({ ok: true, token: signAdminToken() })
+  // Respond immediately
+  return res.status(201).json({
+    ok: true,
+  })
 })
 
 app.delete('/api/subscribers/:id', (req, res) => {
