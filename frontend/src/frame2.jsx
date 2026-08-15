@@ -908,11 +908,17 @@ export default function ComingSoonPage() {
     SITE.launchDate instanceof Date && !Number.isNaN(SITE.launchDate.getTime())
       ? SITE.launchDate
       : null
-  const [modalOpen, setModalOpen] = useState(false)
-  const [tracksOpen, setTracksOpen] = useState(false)
-  const [reducedMotion, setReducedMotion] = useState(false)
-  const [introDone, setIntroDone] = useState(false)
-  const [visitCount, setVisitCount] = useState(null)
+const [modalOpen, setModalOpen] = useState(false)
+const [tracksOpen, setTracksOpen] = useState(false)
+const [reducedMotion, setReducedMotion] = useState(false)
+const [introDone, setIntroDone] = useState(false)
+const [visitCount, setVisitCount] = useState(null)
+
+useEffect(() => {
+  getVisitCount().then((count) => {
+    setVisitCount(count)
+  })
+}, [])
 
 useEffect(() => {
   getVisitCount().then(setVisitCount)
