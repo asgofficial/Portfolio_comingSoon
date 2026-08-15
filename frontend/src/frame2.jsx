@@ -912,7 +912,11 @@ export default function ComingSoonPage() {
   const [tracksOpen, setTracksOpen] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
   const [introDone, setIntroDone] = useState(false)
-  const visitCount = useMemo(() => getVisitCount(), [])
+  const [visitCount, setVisitCount] = useState(null)
+
+useEffect(() => {
+  getVisitCount().then(setVisitCount)
+}, [])
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -1038,7 +1042,7 @@ export default function ComingSoonPage() {
           {...fadeUp(0)}
           className={`mb-7 text-[11px] uppercase tracking-[0.42em] text-[var(--accent)] ${DISPLAY_FONT}`}
         >
-          Log entry &mdash; {String(visitCount).padStart(3, '0')}
+          Log entry &mdash; {String(visitCount ?? 1).padStart(3, '0')}
         </motion.p>
 
         <motion.h1
