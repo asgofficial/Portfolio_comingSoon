@@ -4,7 +4,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import { rateLimit } from 'express-rate-limit'
 import crypto from 'node:crypto'
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 import {
   insertSubscriber,
   findSubscriberByEmail,
@@ -20,34 +20,19 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .filter(Boolean)
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || ''
 const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000
-const GMAIL_USER = process.env.GMAIL_USER || 'gautamayushsinghofficial@gmail.com'
-const GMAIL_APP_PASSWORD = String(process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '')
-const NOTIFY_FROM_EMAIL = process.env.NOTIFY_FROM_EMAIL || GMAIL_USER
+const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
+const NOTIFY_FROM_EMAIL =
+  process.env.NOTIFY_FROM_EMAIL || 'onboarding@resend.dev'
 const SITE_NAME = process.env.SITE_NAME || 'ASGAUTAM'
 
-const mailTransport = GMAIL_APP_PASSWORD
-  ? nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: GMAIL_USER,
-        pass: GMAIL_APP_PASSWORD,
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-    })
+const resend = RESEND_API_KEY
+  ? new Resend(RESEND_API_KEY)
   : null
 
-if (mailTransport) {
-  mailTransport.verify()
-    .then(() => {
-      console.log(`gmail transport ready for ${GMAIL_USER}`)
-    })
-    .catch((err) => {
-      console.error('gmail transport verify failed:', err.message)
-    })
+if (resend) {
+  console.log('Resend email transport ready')
 } else {
-  console.warn('gmail transport disabled: GMAIL_APP_PASSWORD is not set')
+  console.warn('Resend email transport disabled: RESEND_API_KEY is not set')
 }
 
 const app = express()
@@ -149,38 +134,58 @@ function isAdminAuthorized(req) {
 }
 
 async function sendWelcomeEmail(email) {
-  if (!mailTransport) {
-    console.warn(`welcome email skipped for ${email}: mail transport disabled`)
+  if (!resend) {
+    console.warn(`welcome email skipped for ${email}: Resend API key is not set`)
     return false
   }
+
   try {
-    const info = await mailTransport.sendMail({
-      from: NOTIFY_FROM_EMAIL,
-      to: email,
-      subject: `You’re on the list`,
-      text: `Hi,\n\nYou’re all set and will be notified the moment ${SITE_NAME} goes live.\n\nThanks for signing up. This is the first step, and you’ll only hear from me when there’s something worth sharing.\n\nUntil then, keep an eye out. The build is in motion.\n\n— Ayush Singh Gautam`,
+    const { data, error } = await resend.emails.send({
+      from: `${SITE_NAME} <${NOTIFY_FROM_EMAIL}>`,
+      to: [email],
+      subject: `You're on the list`,
+      text: `Hi,
+
+You're all set and will be notified the moment ${SITE_NAME} goes live.
+
+Thanks for signing up. This is the first step, and you'll only hear from me when there's something worth sharing.
+
+Until then, keep an eye out. The build is in motion.
+
+— Ayush Singh Gautam`,
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827; max-width: 560px; margin: 0 auto;">
           <p style="font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; margin: 0 0 16px;">
-            You’re on the list
+            You're on the list
           </p>
-          <h1 style="font-size: 24px; margin: 0 0 12px;">You’re all set and will be notified the moment ${SITE_NAME} goes live.</h1>
+
+          <h1 style="font-size: 24px; margin: 0 0 12px;">
+            You're all set and will be notified the moment ${SITE_NAME} goes live.
+          </h1>
+
           <p style="font-size: 16px; margin: 0 0 20px;">
-            Thanks for signing up. This is the first step, and you’ll only hear from me when there’s something worth sharing.
+            Thanks for signing up. This is the first step, and you'll only hear from me when there's something worth sharing.
           </p>
+
           <p style="font-size: 16px; margin: 0 0 20px;">
             Until then, keep an eye out. The build is in motion.
           </p>
+
           <p style="font-size: 13px; color: #6b7280; margin: 0;">
             — Ayush Singh Gautam
           </p>
         </div>
       `,
     })
-    console.log(`welcome email sent to ${email}: ${info.response || info.messageId || 'ok'}`)
+
+    if (error) {
+      console.error('welcome email failed:', error)
+      return false
+    }
+
+    console.log(`welcome email sent to ${email}: ${data?.id || 'ok'}`)
     return true
   } catch (err) {
-    // A failed confirmation email should never fail the signup itself.
     console.error('welcome email failed:', err.message)
     return false
   }
@@ -235,9 +240,13 @@ app.post('/api/subscribe', subscribeLimiter, async (req, res) => {
   }
 
   // Send email without blocking the signup response
-  sendWelcomeEmail(email).catch((err) => {
-    console.error('Background welcome email error:', err)
-  })
+sendWelcomeEmail(email).catch((err) => {
+
+  console.error('Background welcome email error:', err)
+
+})
+
+return res.status(201).json({ ok: true })
 
   // Respond immediately
   return res.status(201).json({
