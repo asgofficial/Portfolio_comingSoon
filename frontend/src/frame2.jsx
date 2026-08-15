@@ -61,21 +61,32 @@ const LOG = [
 // ---------------------------------------------------------------------------
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787'
 const ADMIN_TOKEN_STORAGE = 'asgautam-admin-token'
-const VISIT_COUNT_STORAGE = 'asgautam-visit-count'
 let cachedVisitCount = null
 
-function getVisitCount() {
+async function getVisitCount() {
   if (cachedVisitCount !== null) return cachedVisitCount
 
-  if (typeof window === 'undefined') {
+  try {
+    const res = await fetch(`${API_URL}/api/visit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const data = await res.json()
+
+    if (!res.ok || !data?.ok) {
+      throw new Error('Unable to load visit count.')
+    }
+
+    cachedVisitCount = data.visitCount
+    return cachedVisitCount
+  } catch {
+    // Fallback if backend is temporarily unavailable.
     cachedVisitCount = 1
     return cachedVisitCount
   }
-
-  const current = Number(window.localStorage.getItem(VISIT_COUNT_STORAGE) || '0') + 1
-  window.localStorage.setItem(VISIT_COUNT_STORAGE, String(current))
-  cachedVisitCount = current
-  return current
 }
 
 async function subscribeEmail(email) {
