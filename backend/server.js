@@ -283,6 +283,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ ok: false, error: 'Something went wrong.' })
 })
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`notify-me backend listening on :${PORT}`)
 })
