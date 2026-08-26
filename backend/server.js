@@ -24,7 +24,7 @@ const ADMIN_API_KEY = process.env.ADMIN_API_KEY || ''
 const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000
 const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
 const NOTIFY_FROM_EMAIL =
-  process.env.NOTIFY_FROM_EMAIL || 'gautamayushsinghofficial@gmail.com'
+  process.env.NOTIFY_FROM_EMAIL || 'notify@asgautam.in'
 const SITE_NAME = process.env.SITE_NAME || 'ASGAUTAM'
 
 const resend = RESEND_API_KEY
