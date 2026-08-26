@@ -26,7 +26,14 @@ db.exec(`
     confirmed     INTEGER NOT NULL DEFAULT 1
   );
   CREATE INDEX IF NOT EXISTS idx_subscribers_created_at ON subscribers(created_at);
+
+  CREATE TABLE IF NOT EXISTS visits (
+    id    INTEGER PRIMARY KEY CHECK (id = 1),
+    count INTEGER NOT NULL DEFAULT 0
+  );
 `)
+
+db.exec(`INSERT OR IGNORE INTO visits (id, count) VALUES (1, 0)`)
 
 export const insertSubscriber = db.prepare(`
   INSERT INTO subscribers (email, source, ip_hash)
@@ -47,4 +54,14 @@ export const deleteSubscriberById = db.prepare(`
 
 export const countSubscribers = db.prepare(`
   SELECT COUNT(*) AS count FROM subscribers
+`)
+
+// Single-row counter, incremented once per page load by POST /api/visit.
+export const incrementVisitCount = db.prepare(`
+  UPDATE visits SET count = count + 1 WHERE id = 1
+  RETURNING count
+`)
+
+export const getVisitCount = db.prepare(`
+  SELECT count FROM visits WHERE id = 1
 `)
